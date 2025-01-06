@@ -28,8 +28,8 @@ A Telegram bot that analyzes Reddit posts using Claude AI to provide summaries a
 
 1. Clone the repository:
 ```bash
-git clone <repository-url>
-cd reddit-analysis-telegram-bot
+git clone git@github.com:shuienko/rpostsummarybot.git
+cd rpostsummarybot
 ```
 
 2. Install dependencies:
