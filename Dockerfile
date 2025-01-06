@@ -1,35 +1,20 @@
-# Stage 1 - Build dependencies
-FROM python:3.11-alpine AS builder
+# Use Python 3.11 slim image as base
+FROM python:3.11-slim
 
+# Set working directory
 WORKDIR /app
 
-# Install build dependencies including Rust and Cargo
-RUN apk add --no-cache \
+# Install system dependencies required for building Python packages
+RUN apt-get update && apt-get install -y \
     gcc \
-    musl-dev \
-    libffi-dev \
-    openssl-dev \
     python3-dev \
-    build-base \
-    cargo \
-    rust \
-    && pip install --upgrade pip wheel
+    && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements and build wheels
+# Copy requirements first to leverage Docker cache
 COPY requirements.txt .
-RUN pip wheel --no-cache-dir -r requirements.txt -w /wheels
 
-# Stage 2 - Minimal runtime image
-FROM python:3.11-alpine
-
-WORKDIR /app
-
-# Install runtime dependencies
-RUN apk add --no-cache libffi openssl
-
-# Copy wheels from the builder stage
-COPY --from=builder /wheels /wheels
-RUN pip install --no-cache-dir /wheels/*
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the bot code
 COPY bot.py .
@@ -37,7 +22,7 @@ COPY bot.py .
 # Create volume mount point for .env file
 VOLUME /app/config
 
-# Set environment variables
+# Set environment variable to point to the mounted .env file
 ENV PYTHONUNBUFFERED=1
 ENV DOTENV_PATH=/app/config/.env
 

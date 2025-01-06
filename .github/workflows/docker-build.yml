@@ -28,8 +28,8 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          platforms: linux/amd64,linux/arm/v7  # arm/v7 is for Raspberry Pi 3
+          platforms: linux/amd64,linux/arm/v7
           push: true
           tags: |
-            maffei/rpostsummarybot:latest
-            maffei/rpostsummarybot:${{ github.sha }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/rpostsummarybot:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/rpostsummarybot:${{ github.sha }}
