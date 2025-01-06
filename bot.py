@@ -1,7 +1,6 @@
 import os
 from telegram.ext import Application, CommandHandler, MessageHandler, filters
 import asyncpraw
-import aiohttp
 from typing import Tuple, List, Dict
 from telegram.constants import MessageLimit
 from dotenv import load_dotenv
@@ -18,9 +17,25 @@ reddit = asyncpraw.Reddit(
     user_agent="python:rpostsummarybot:v1.0"
 )
 
-# Telegram bot token from environment variable
-TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
+# Anthropic API Key
 ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY')
+
+# Telegram bot token and allowed user ID from environment variables
+TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
+ALLOWED_USER_ID = int(os.getenv('ALLOWED_USER_ID', 0))
+
+# Authentication decorator
+def restricted(func):
+    async def wrapped(update, context, *args, **kwargs):
+        user_id = update.effective_user.id
+        if user_id != ALLOWED_USER_ID:
+            print(f"Unauthorized access denied for user {user_id}")
+            await update.message.reply_text(
+                "Sorry, this bot is private. Access denied."
+            )
+            return
+        return await func(update, context, *args, **kwargs)
+    return wrapped
 
 class RedditAnalyzer:
     def __init__(self):
@@ -46,7 +61,7 @@ class RedditAnalyzer:
                 "input_tokens": input_tokens,
                 "output_tokens": output_tokens,
                 "total_tokens": input_tokens + output_tokens,
-                "prompt_type": prompt[:100] + "..."  # Log first 100 chars of prompt for context
+                "prompt_type": prompt[:100] + "..."
             }, indent=2))
             
             return response.strip(), input_tokens, output_tokens
@@ -142,6 +157,7 @@ async def chunk_message(text: str, max_length: int = MessageLimit.MAX_TEXT_LENGT
 
     return chunks
 
+@restricted
 async def start(update, context):
     """Send a message when the command /start is issued."""
     welcome_message = (
@@ -153,6 +169,7 @@ async def start(update, context):
     )
     await update.message.reply_text(welcome_message)
 
+@restricted
 async def analyze_url(update, context):
     """Analyze the Reddit URL sent by user"""
     url = update.message.text
@@ -170,21 +187,25 @@ async def analyze_url(update, context):
         return
 
     # Format response
-    response = f"📝 Post Summary\n{post_summary}\n\n\n"
-    response += f"💭 Comments Overview\n{comments_summary}\n\n\n"
-    response += f"📊 Sentiment Analysis:\n"
-    response += f"Positive: {sentiment_stats['positive_percent']:.1f}%\n"
-    response += f"Negative: {sentiment_stats['negative_percent']:.1f}%"
+    response = f"📝 ----- Post Summary\n{post_summary}\n\n\n"
+    response += f"💭 ----- Comments Overview\n{comments_summary}\n\n\n"
+    response += f"📊 ----- Sentiment Analysis\n"
+    response += f"- Positive: {sentiment_stats['positive_percent']:.1f}%\n"
+    response += f"- Negative: {sentiment_stats['negative_percent']:.1f}%"
 
     # Split response into chunks and send multiple messages if needed
     chunks = await chunk_message(response)
     for chunk in chunks:
         await update.message.reply_text(chunk)
 
+@restricted
+async def whoami(update, context):
+    """Command to check user ID"""
+    await update.message.reply_text(f"Your Telegram User ID is: {update.effective_user.id}")
+
 def main():
     """Start the bot."""
-    # Verify environment variables
-    required_vars = ['TELEGRAM_TOKEN', 'REDDIT_CLIENT_ID', 'REDDIT_CLIENT_SECRET', 'ANTHROPIC_API_KEY']
+    required_vars = ['TELEGRAM_TOKEN', 'REDDIT_CLIENT_ID', 'REDDIT_CLIENT_SECRET', 'ANTHROPIC_API_KEY', 'ALLOWED_USER_ID']
     missing_vars = [var for var in required_vars if not os.getenv(var)]
     
     if missing_vars:
@@ -197,6 +218,7 @@ def main():
 
     # Add handlers
     application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("whoami", whoami))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, analyze_url))
 
     # Start the Bot

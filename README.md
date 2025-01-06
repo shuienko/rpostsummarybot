@@ -14,6 +14,7 @@ A Telegram bot that analyzes Reddit posts using Claude AI to provide summaries a
 - Docker support for easy deployment
 - Environment variable configuration
 - Token usage logging
+- Restriction by Telegram User ID
 
 ## Prerequisites
 
@@ -42,6 +43,7 @@ TELEGRAM_TOKEN=your_telegram_bot_token
 REDDIT_CLIENT_ID=your_reddit_client_id
 REDDIT_CLIENT_SECRET=your_reddit_client_secret
 ANTHROPIC_API_KEY=your_anthropic_api_key
+ALLOWED_USER_ID=your_telegram_user_id_here
 ```
 
 ## Usage
