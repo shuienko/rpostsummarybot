@@ -1,20 +1,32 @@
-# Use Python 3.11 slim image as base
-FROM python:3.11-slim
+# Use multi-stage build to reduce final image size
+# Stage 1 - Build dependencies
+FROM python:3.11-alpine as builder
 
-# Set working directory
 WORKDIR /app
 
-# Install system dependencies required for building Python packages
-RUN apt-get update && apt-get install -y \
+# Install build dependencies
+RUN apk add --no-cache \
     gcc \
+    musl-dev \
+    libffi-dev \
     python3-dev \
-    && rm -rf /var/lib/apt/lists/*
+    && pip install --upgrade pip
 
-# Copy requirements first to leverage Docker cache
+# Copy and install dependencies
 COPY requirements.txt .
+RUN pip wheel --no-cache-dir -r requirements.txt -w /wheels
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Stage 2 - Create minimal runtime image
+FROM python:3.11-alpine
+
+WORKDIR /app
+
+# Install runtime dependencies
+RUN apk add --no-cache libffi
+
+# Copy compiled wheels from builder stage
+COPY --from=builder /wheels /wheels
+RUN pip install --no-cache-dir /wheels/*
 
 # Copy the bot code
 COPY bot.py .
