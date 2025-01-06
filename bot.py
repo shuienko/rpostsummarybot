@@ -102,9 +102,13 @@ class RedditBot:
     async def analyze_reddit_post(self, post_url: str) -> Tuple[str, str, Dict]:
         """Analyze Reddit post and return post summary, comments summary, and sentiment stats"""
         try:
-            # Extract post ID from URL
-            post_id = post_url.split('/')[-3]
-            submission = await reddit.submission(id=post_id)
+            # Check if the URL is a short link and resolve it
+            if "redd.it" in post_url or "/s/" in post_url:
+                submission = await reddit.submission(url=post_url)
+            else:
+                # Extract post ID from standard Reddit URL
+                post_id = post_url.split('/')[-3]
+                submission = await reddit.submission(id=post_id)
             
             # Get post summary
             post_content = submission.selftext if submission.selftext else submission.title
