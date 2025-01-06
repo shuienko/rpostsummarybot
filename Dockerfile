@@ -1,10 +1,10 @@
-# Use Python 3.9 slim image as base
-FROM python:3.9-slim
+# Use Python 3.11 slim image as base
+FROM python:3.11-slim
 
-# Set working directory in container
+# Set working directory
 WORKDIR /app
 
-# Install system dependencies
+# Install system dependencies required for building Python packages
 RUN apt-get update && apt-get install -y \
     gcc \
     python3-dev \
@@ -16,15 +16,15 @@ COPY requirements.txt .
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the rest of the application
-COPY . .
+# Copy the bot code
+COPY bot.py .
 
-# Environment variables will be provided via docker-compose or at runtime
-ENV TELEGRAM_TOKEN=""
-ENV REDDIT_CLIENT_ID=""
-ENV REDDIT_CLIENT_SECRET=""
-ENV OLLAMA_URL="http://localhost:11434/api/generate"
-ENV OLLAMA_MODEL="llama3.2"
+# Create volume mount point for .env file
+VOLUME /app/config
+
+# Set environment variable to point to the mounted .env file
+ENV PYTHONUNBUFFERED=1
+ENV DOTENV_PATH=/app/config/.env
 
 # Run the bot
 CMD ["python", "bot.py"]
