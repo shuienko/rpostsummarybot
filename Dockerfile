@@ -1,4 +1,3 @@
-# Use multi-stage build to reduce final image size
 # Stage 1 - Build dependencies
 FROM python:3.11-alpine AS builder
 
@@ -11,15 +10,14 @@ RUN apk add --no-cache \
     libffi-dev \
     openssl-dev \
     python3-dev \
-    py3-pip \
     build-base \
-    && pip install --upgrade pip
+    && pip install --upgrade pip wheel
 
-# Copy and install dependencies
+# Copy requirements and build wheels
 COPY requirements.txt .
 RUN pip wheel --no-cache-dir -r requirements.txt -w /wheels
 
-# Stage 2 - Create minimal runtime image
+# Stage 2 - Minimal runtime image
 FROM python:3.11-alpine
 
 WORKDIR /app
@@ -27,7 +25,7 @@ WORKDIR /app
 # Install runtime dependencies
 RUN apk add --no-cache libffi openssl
 
-# Copy compiled wheels from builder stage
+# Copy wheels from the builder stage
 COPY --from=builder /wheels /wheels
 RUN pip install --no-cache-dir /wheels/*
 
@@ -37,7 +35,7 @@ COPY bot.py .
 # Create volume mount point for .env file
 VOLUME /app/config
 
-# Set environment variable to point to the mounted .env file
+# Set environment variables
 ENV PYTHONUNBUFFERED=1
 ENV DOTENV_PATH=/app/config/.env
 
