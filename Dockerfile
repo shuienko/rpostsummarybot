@@ -3,7 +3,7 @@ FROM python:3.11-alpine AS builder
 
 WORKDIR /app
 
-# Install build dependencies
+# Install build dependencies including Rust and Cargo
 RUN apk add --no-cache \
     gcc \
     musl-dev \
@@ -11,6 +11,8 @@ RUN apk add --no-cache \
     openssl-dev \
     python3-dev \
     build-base \
+    cargo \
+    rust \
     && pip install --upgrade pip wheel
 
 # Copy requirements and build wheels
