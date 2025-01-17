@@ -72,7 +72,7 @@ class RedditAnalyzer:
 
     async def get_post_summary(self, post_content: str) -> str:
         """Generate summary of Reddit post using Claude"""
-        prompt = f"Summarize this Reddit post concisely: {post_content}"
+        prompt = f"Summarize this Reddit post concisely. Three sentences maximum: {post_content}"
         response, _, _ = await self._call_anthropic(prompt)
         return response
 
@@ -88,8 +88,8 @@ class RedditAnalyzer:
         comments_text = "\n".join(comments[:10])  # Ensure we only take top 10
         prompt = (
             "Below are the top 10 comments from a Reddit post. "
-            "Provide a 2-3 sentence summary that captures the main themes "
-            "and overall sentiment of these comments. Reply with just with the summary. "
+            "Provide brief (3 sentences maximum) summary that captures the feedback on the post "
+            "and overall sentiment of all these comments. Reply with just with the summary. "
             "Don't include anything else in your response. Comments:\n\n" + comments_text
         )
         response, _, _ = await self._call_anthropic(prompt)
@@ -191,9 +191,9 @@ async def analyze_url(update, context):
         return
 
     # Format response
-    response = f"📝 ----- Post Summary\n{post_summary}\n\n\n"
-    response += f"💭 ----- Comments Overview\n{comments_summary}\n\n\n"
-    response += f"📊 ----- Sentiment Analysis\n"
+    response = f"📝 ----- Post Summary -----\n{post_summary}\n\n\n"
+    response += f"💭 ----- Comments Overview -----\n{comments_summary}\n\n\n"
+    response += f"📊 ----- Sentiment Analysis -----\n"
     response += f"- Positive: {sentiment_stats['positive_percent']:.1f}%\n"
     response += f"- Negative: {sentiment_stats['negative_percent']:.1f}%"
 
