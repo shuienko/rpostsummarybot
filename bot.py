@@ -72,7 +72,11 @@ class RedditAnalyzer:
 
     async def get_post_summary(self, post_content: str) -> str:
         """Generate summary of Reddit post using Claude"""
-        prompt = f"Summarize this Reddit post concisely. Three sentences maximum: {post_content}"
+        prompt = ( 
+            "Summarize the Reddit post below concisely. "
+            "Create the summary using 3 sentences maximum. Don't create bullet points or numbered lists. "
+            "Post:\n\n" + post_content
+        )
         response, _, _ = await self._call_anthropic(prompt)
         return response
 
