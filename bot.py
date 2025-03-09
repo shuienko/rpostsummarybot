@@ -443,12 +443,12 @@ async def chunk_message(text: str, max_length: int = MessageLimit.MAX_TEXT_LENGT
 async def start(update, context):
     """Send a message when the command /start is issued."""
     welcome_message = (
-        "Welcome! Send me a Reddit post URL, and I'll analyze it for you.\n"
-        "I'll provide:\n"
-        "- Post summary\n"
-        "- Summary of top comments\n"
-        "- Sentiment analysis of comments\n\n"
-        "Type /help to see all available commands."
+        "🎉 Welcome to the Reddit Post Analyzer Bot! 🎉\n\n"
+        "Send me any Reddit post URL, and I'll work my magic to give you:\n\n"
+        "📌 **TLDR: POST IN A NUTSHELL** - A quick summary of what the post is about\n"
+        "💬 **WHAT THE CROWD IS SAYING** - The key points from the comments\n"
+        "🎭 **MOOD METER: VIBES CHECK** - How people are feeling about it\n\n"
+        "Type /help to see all available commands and get started!"
     )
     await update.message.reply_text(welcome_message)
 
@@ -456,15 +456,15 @@ async def start(update, context):
 async def help_command(update, context):
     """Send a message with all available commands."""
     help_message = (
-        "📋 Available Commands:\n\n"
-        "/start - Start the bot and see welcome message\n"
-        "/help - Show this help message\n"
-        "/usage - Check your usage statistics\n"
-        "/whoami - Check your Telegram user ID\n"
-        "/model - Change the AI model (fast/balanced/powerful)\n"
-        "/cache - Check cache statistics\n"
-        "/clearcache - Clear the cache\n\n"
-        "Simply send a Reddit post URL to analyze it."
+        "✨ **REDDIT ANALYZER BOT COMMANDS** ✨\n\n"
+        "🚀 /start - Fire up the bot and get the welcome message\n"
+        "❓ /help - Show this magical list of commands\n"
+        "📊 /usage - Check how much you've been using the bot\n"
+        "🔍 /whoami - Discover your Telegram user ID\n"
+        "🧠 /model - Switch between AI brains (fast/balanced/powerful)\n"
+        "💾 /cache - Peek at the cache statistics\n"
+        "🧹 /clearcache - Sweep the cache clean\n\n"
+        "✉️ Simply paste any Reddit post URL to get your analysis!"
     )
     await update.message.reply_text(help_message)
 
@@ -555,29 +555,53 @@ async def analyze_url(update, context):
         await update.message.reply_text(f"❌ {post_summary}\n{comments_summary}")
         return
 
-    # Format response
-    response = f"📝 ----- Post Summary -----\n{post_summary}\n\n\n"
-    response += f"💭 ----- Comments Overview -----\n{comments_summary}\n\n\n"
-    response += f"📊 ----- Sentiment Analysis -----\n"
+    # Format response with fun, engaging headings
+    response = f"🔍 **THE REDDIT RUNDOWN** 🔍\n\n"
+    response += f"📌 **TLDR: POST IN A NUTSHELL** 📌\n{post_summary}\n\n\n"
+    response += f"💬 **WHAT THE CROWD IS SAYING** 💬\n{comments_summary}\n\n\n"
+    response += f"🎭 **MOOD METER: VIBES CHECK** 🎭\n"
     
     # Only show percentages if we have comment data
     if sentiment_stats.get('sentiment_breakdown', {}).get('positive', 0) > 0 or \
        sentiment_stats.get('sentiment_breakdown', {}).get('negative', 0) > 0:
         
         breakdown = sentiment_stats['sentiment_breakdown']
-        response += f"Sentiment Breakdown:\n"
-        response += f"- Positive: {breakdown['positive']:.1f}%\n"
-        response += f"- Negative: {breakdown['negative']:.1f}%\n"
-        response += f"- Neutral: {breakdown['neutral']:.1f}%\n\n"
+        response += f"👥 Comment Mood Breakdown:\n"
+        response += f"😊 Positive: {breakdown['positive']:.1f}%\n"
+        response += f"😔 Negative: {breakdown['negative']:.1f}%\n"
+        response += f"😐 Neutral: {breakdown['neutral']:.1f}%\n\n"
         
         if sentiment_stats.get('top_emotions'):
-            response += f"Top Emotions:\n"
+            response += f"✨ Top Emotions in the Thread:\n"
             for emotion in sentiment_stats['top_emotions']:
-                response += f"- {emotion['emotion'].capitalize()}: {emotion['percent']:.1f}%\n"
+                # Add emoji based on emotion
+                emoji = "🤔"  # default
+                emotion_name = emotion['emotion'].lower()
+                
+                if any(word in emotion_name for word in ["happy", "joy", "excite"]):
+                    emoji = "😄"
+                elif any(word in emotion_name for word in ["sad", "disappoint"]):
+                    emoji = "😢"
+                elif any(word in emotion_name for word in ["angry", "frustrat", "annoy"]):
+                    emoji = "😠"
+                elif any(word in emotion_name for word in ["surprise"]):
+                    emoji = "😲"
+                elif any(word in emotion_name for word in ["fear", "worry", "anxious"]):
+                    emoji = "😨"
+                elif any(word in emotion_name for word in ["curious"]):
+                    emoji = "🧐"
+                
+                response += f"{emoji} {emotion['emotion'].capitalize()}: {emotion['percent']:.1f}%\n"
             
-        response += f"\nAverage Intensity: {sentiment_stats['avg_intensity']:.1f}/5"
+        # Create a visual intensity meter
+        intensity = sentiment_stats['avg_intensity']
+        intensity_meter = "▓" * int(intensity) + "░" * (5 - int(intensity))
+        response += f"\n🔥 Intensity Meter: {intensity_meter} ({intensity:.1f}/5)"
     else:
-        response += "No sentiment data available (post may have no comments)"
+        response += "👻 No comments found - it's quiet in here!"
+
+    # Add a fun footer
+    response += "\n\n✨ Analysis powered by AI magic ✨"
 
     # Split response into chunks and send multiple messages if needed
     chunks = await chunk_message(response)
