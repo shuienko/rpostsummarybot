@@ -56,8 +56,8 @@ class UsageTracker:
         self.daily_usage = defaultdict(int)
         self.user_requests = defaultdict(list)
         self.rate_limits = {}  # user_id -> timestamp of last allowed request
-        self.MAX_REQUESTS_PER_DAY = 20
-        self.RATE_LIMIT_SECONDS = 60  # 1 request per minute
+        self.MAX_REQUESTS_PER_DAY = 30
+        self.RATE_LIMIT_SECONDS = 30  # 2 requests per minute
         
     def can_make_request(self, user_id: int) -> bool:
         """Check if user can make a request based on rate limits and daily quota"""
