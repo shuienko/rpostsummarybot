@@ -15,9 +15,9 @@ When you send a Reddit URL, the bot works its magic to deliver:
 ## 🧠 AI Brainpower Options
 
 Choose your AI processing power based on your needs:
-- ⚡ **Fast Mode** - Quick analysis using Claude 3 Haiku (default)
-- ⚖️ **Balanced Mode** - Better quality with Claude 3 Sonnet
-- 🔋 **Powerful Mode** - Premium analysis with Claude 3 Opus
+- ⚡ **Haiku3 Mode** - Quick analysis using Claude 3 Haiku (default)
+- 🚀 **Haiku35 Mode** - Latest Haiku model with improved performance
+- 🔋 **Sonnet4 Mode** - Premium analysis with Claude Sonnet 4.0
 
 ## 🛠️ Cool Technical Features
 
@@ -75,7 +75,7 @@ docker run -v $(pwd)/config:/app/config reddit-analysis-bot
 
 - `/start` - Wake up the bot with a friendly greeting
 - `/help` - Show all the cool commands available
-- `/model [fast/balanced/powerful]` - Switch between AI brains
+- `/model [haiku3/haiku35/sonnet4]` - Switch between AI brains
 - `/usage` - Check how many requests you have left today
 - `/whoami` - Discover your Telegram user ID
 - `/cache` - See what's in the memory bank

@@ -181,11 +181,11 @@ class RedditAnalyzer:
         self.client = anthropic.Client(api_key=ANTHROPIC_API_KEY)
         # Default to haiku for cost efficiency, but allow switching to more capable models
         self.models = {
-            "fast": "claude-3-haiku-20240307",
-            "balanced": "claude-3-sonnet-20240229",
-            "powerful": "claude-3-opus-20240229"
+            "haiku3":  "claude-3-haiku-20240307",
+            "haiku35": "claude-3-5-haiku-latest",
+            "sonnet4": "claude-sonnet-4-0"
         }
-        self.current_model = "fast"
+        self.current_model = "haiku3"
         logger.info(f"RedditAnalyzer initialized with default model: {self.models[self.current_model]}")
         
     def set_model(self, model_key: str):
@@ -461,7 +461,7 @@ async def help_command(update, context):
         "❓ /help - Show this magical list of commands\n"
         "📊 /usage - Check how much you've been using the bot\n"
         "🔍 /whoami - Discover your Telegram user ID\n"
-        "🧠 /model - Switch between AI brains (fast/balanced/powerful)\n"
+        "🧠 /model - Switch between AI brains (haiku3/haiku35/sonnet4)\n"
         "💾 /cache - Peek at the cache statistics\n"
         "🧹 /clearcache - Sweep the cache clean\n\n"
         "✉️ Simply paste any Reddit post URL to get your analysis!"
@@ -473,11 +473,11 @@ async def set_model(update, context):
     """Change the AI model used for analysis."""
     if not context.args or len(context.args) != 1:
         await update.message.reply_text(
-            "Please specify a model: fast, balanced, or powerful\n"
-            "Example: /model balanced\n\n"
-            "- fast: Quickest, most economical (Claude 3 Haiku)\n"
-            "- balanced: Good balance of speed and quality (Claude 3 Sonnet)\n"
-            "- powerful: Highest quality but slower (Claude 3 Opus)"
+            "Please specify a model: haiku3, haiku35, or sonnet4\n"
+            "Example: /model haiku35\n\n"
+            "- haiku3: Quickest, most economical (Claude 3 Haiku)\n"
+            "- haiku35: Latest Haiku model with improved performance\n"
+            "- sonnet4: Highest quality but slower (Claude Sonnet 4.0)"
         )
         return
         
@@ -498,7 +498,7 @@ async def set_model(update, context):
         )
     else:
         await update.message.reply_text(
-            "❌ Invalid model. Please choose from: fast, balanced, or powerful"
+            "❌ Invalid model. Please choose from: haiku3, haiku35, or sonnet4"
         )
 
 @restricted
