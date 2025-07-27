@@ -1,8 +1,8 @@
 import os
-from telegram.ext import Application, CommandHandler, MessageHandler, filters
+import discord
+from discord.ext import commands
 import asyncpraw
 from typing import Tuple, List, Dict
-from telegram.constants import MessageLimit
 from dotenv import load_dotenv
 import anthropic
 import json
@@ -36,19 +36,14 @@ logger.addHandler(console_handler)
 # Load environment variables
 load_dotenv()
 
-# Initialize Reddit API client
-reddit = asyncpraw.Reddit(
-    client_id=os.getenv('REDDIT_CLIENT_ID'),
-    client_secret=os.getenv('REDDIT_CLIENT_SECRET'),
-    user_agent="python:rpostsummarybot:v1.0"
-)
+# Reddit API client will be initialized in async context
+reddit = None
 
 # Anthropic API Key
 ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY')
 
-# Telegram bot token and allowed user ID from environment variables
-TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
-ALLOWED_USER_ID = int(os.getenv('ALLOWED_USER_ID', 0))
+# Discord bot token from environment variables
+DISCORD_TOKEN = os.getenv('DISCORD_TOKEN')
 
 # Usage tracking
 class UsageTracker:
@@ -163,18 +158,10 @@ class ResultCache:
 # Initialize cache
 result_cache = ResultCache()
 
-# Authentication decorator
-def restricted(func):
-    async def wrapped(update, context, *args, **kwargs):
-        user_id = update.effective_user.id
-        if user_id != ALLOWED_USER_ID:
-            print(f"Unauthorized access denied for user {user_id}")
-            await update.message.reply_text(
-                "Sorry, this bot is private. Access denied."
-            )
-            return
-        return await func(update, context, *args, **kwargs)
-    return wrapped
+# Discord bot setup
+intents = discord.Intents.default()
+intents.message_content = True
+bot = commands.Bot(command_prefix='!', intents=intents)  # Keep prefix for non-slash commands
 
 class RedditAnalyzer:
     def __init__(self):
@@ -310,6 +297,17 @@ class RedditAnalyzer:
 class RedditBot:
     def __init__(self):
         self.analyzer = RedditAnalyzer()
+        self.reddit = None
+    
+    async def _get_reddit_client(self):
+        """Get or create Reddit client in async context"""
+        if self.reddit is None:
+            self.reddit = asyncpraw.Reddit(
+                client_id=os.getenv('REDDIT_CLIENT_ID'),
+                client_secret=os.getenv('REDDIT_CLIENT_SECRET'),
+                user_agent="python:rpostsummarybot:v1.0"
+            )
+        return self.reddit
 
     async def analyze_reddit_post(self, post_url: str) -> Tuple[str, str, Dict]:
         """Analyze Reddit post and return post summary, comments summary, and sentiment stats"""
@@ -322,16 +320,19 @@ class RedditBot:
         logger.info(f"Cache miss for URL: {post_url}")
         
         try:
+            # Get Reddit client in async context
+            reddit_client = await self._get_reddit_client()
+            
             # Check if the URL is a short link and resolve it
             if "redd.it" in post_url or "/s/" in post_url:
                 logger.debug(f"Processing short URL: {post_url}")
-                submission = await reddit.submission(url=post_url)
+                submission = await reddit_client.submission(url=post_url)
             else:
                 # Extract post ID from standard Reddit URL
                 try:
                     post_id = post_url.split('/')[-3]
                     logger.debug(f"Extracted post ID: {post_id} from URL: {post_url}")
-                    submission = await reddit.submission(id=post_id)
+                    submission = await reddit_client.submission(id=post_id)
                 except (IndexError, ValueError) as e:
                     logger.error(f"Failed to parse URL: {post_url}, error: {str(e)}")
                     return "Invalid Reddit URL format", "Could not parse the URL", {}
@@ -421,7 +422,7 @@ class RedditBot:
             logger.error(f"Error analyzing post: {str(e)}", exc_info=True)
             return f"Error analyzing post: {str(e)}", "Analysis failed", {}
 
-async def chunk_message(text: str, max_length: int = MessageLimit.MAX_TEXT_LENGTH) -> List[str]:
+async def chunk_message(text: str, max_length: int = 2000) -> List[str]:
     """Split a message into chunks that fit Telegram's message size limit"""
     chunks = []
     current_chunk = ""
@@ -439,72 +440,82 @@ async def chunk_message(text: str, max_length: int = MessageLimit.MAX_TEXT_LENGT
 
     return chunks
 
-@restricted
-async def start(update, context):
-    """Send a message when the command /start is issued."""
+@bot.tree.command(name='start', description='Get started with the Reddit Analyzer Bot')
+async def start(interaction: discord.Interaction):
+    """Send a message when the /start command is issued."""
     welcome_message = (
         "🎉 Welcome to the Reddit Post Analyzer Bot! 🎉\n\n"
         "Send me any Reddit post URL, and I'll work my magic to give you:\n\n"
         "📌 **TLDR: POST IN A NUTSHELL** - A quick summary of what the post is about\n"
         "💬 **WHAT THE CROWD IS SAYING** - The key points from the comments\n"
         "🎭 **MOOD METER: VIBES CHECK** - How people are feeling about it\n\n"
-        "Type /help to see all available commands and get started!"
+        "Use `/help` to see all available commands and get started!"
     )
-    await update.message.reply_text(welcome_message)
+    await interaction.response.send_message(welcome_message)
 
-@restricted
-async def help_command(update, context):
+@bot.tree.command(name='help', description='Show all available commands')
+async def help_command(interaction: discord.Interaction):
     """Send a message with all available commands."""
     help_message = (
         "✨ **REDDIT ANALYZER BOT COMMANDS** ✨\n\n"
-        "🚀 /start - Fire up the bot and get the welcome message\n"
-        "❓ /help - Show this magical list of commands\n"
-        "📊 /usage - Check how much you've been using the bot\n"
-        "🔍 /whoami - Discover your Telegram user ID\n"
-        "🧠 /model - Switch between AI brains (haiku3/haiku35/sonnet4)\n"
-        "💾 /cache - Peek at the cache statistics\n"
-        "🧹 /clearcache - Sweep the cache clean\n\n"
+        "🚀 `/start` - Fire up the bot and get the welcome message\n"
+        "❓ `/help` - Show this magical list of commands\n"
+        "📊 `/usage` - Check how much you've been using the bot\n"
+        "🔍 `/whoami` - Discover your Discord user ID\n"
+        "🧠 `/model` - Switch between AI brains (haiku3/haiku35/sonnet4)\n"
+        "💾 `/cache` - Peek at the cache statistics\n"
+        "🧹 `/clearcache` - Sweep the cache clean\n\n"
         "✉️ Simply paste any Reddit post URL to get your analysis!"
     )
-    await update.message.reply_text(help_message)
+    await interaction.response.send_message(help_message)
 
-@restricted
-async def set_model(update, context):
+@bot.tree.command(name='model', description='Switch between AI models')
+@discord.app_commands.describe(model='Choose AI model: haiku3, haiku35, or sonnet4')
+@discord.app_commands.choices(model=[
+    discord.app_commands.Choice(name='Claude 3 Haiku (fastest, cheapest)', value='haiku3'),
+    discord.app_commands.Choice(name='Claude 3.5 Haiku (balanced)', value='haiku35'),
+    discord.app_commands.Choice(name='Claude Sonnet 4 (highest quality)', value='sonnet4')
+])
+async def set_model(interaction: discord.Interaction, model: discord.app_commands.Choice[str]):
     """Change the AI model used for analysis."""
-    if not context.args or len(context.args) != 1:
-        await update.message.reply_text(
-            "Please specify a model: haiku3, haiku35, or sonnet4\n"
-            "Example: /model haiku35\n\n"
-            "- haiku3: Quickest, most economical (Claude 3 Haiku)\n"
-            "- haiku35: Latest Haiku model with improved performance\n"
-            "- sonnet4: Highest quality but slower (Claude Sonnet 4.0)"
-        )
-        return
-        
-    model_choice = context.args[0].lower()
+    model_choice = model.value
     
     # Create a temporary analyzer to check if model is valid
     analyzer = RedditAnalyzer()
     if analyzer.set_model(model_choice):
-        # Store the model choice in user data
-        if not hasattr(context.bot_data, 'user_models'):
-            context.bot_data['user_models'] = {}
+        # Store the model choice in bot data
+        if not hasattr(bot, 'user_models'):
+            bot.user_models = {}
         
-        context.bot_data['user_models'][update.effective_user.id] = model_choice
+        bot.user_models[interaction.user.id] = model_choice
         
-        await update.message.reply_text(
-            f"✅ Model set to '{model_choice}'\n"
-            f"Model: {analyzer.models[model_choice]}"
+        await interaction.response.send_message(
+            f"✅ Model set to '{model_choice}' ({model.name})\n"
+            f"Full model: {analyzer.models[model_choice]}"
         )
     else:
-        await update.message.reply_text(
-            "❌ Invalid model. Please choose from: haiku3, haiku35, or sonnet4"
+        await interaction.response.send_message(
+            "❌ Invalid model. Please choose from the available options."
         )
 
-@restricted
-async def analyze_url(update, context):
-    """Analyze the Reddit URL sent by user"""
-    user_id = update.effective_user.id
+@bot.event
+async def on_message(message):
+    """Handle incoming messages"""
+    if message.author == bot.user:
+        return
+    
+    # Process commands first
+    await bot.process_commands(message)
+    
+    # Check if message contains a Reddit URL
+    url = message.content.strip()
+    valid_domains = ["reddit.com", "redd.it", "www.reddit.com", "old.reddit.com"]
+    is_valid = any(domain in url for domain in valid_domains)
+    
+    if not is_valid:
+        return
+    
+    user_id = message.author.id
     
     # Check rate limits
     if not usage_tracker.can_make_request(user_id):
@@ -512,47 +523,32 @@ async def analyze_url(update, context):
         daily_count = usage_tracker.daily_usage[f"{user_id}:{today}"]
         
         if daily_count >= usage_tracker.MAX_REQUESTS_PER_DAY:
-            await update.message.reply_text(
+            await message.channel.send(
                 "⚠️ You've reached your daily limit of requests. "
                 "Please try again tomorrow."
             )
         else:
-            await update.message.reply_text(
+            await message.channel.send(
                 "⚠️ Rate limit exceeded. Please wait at least 1 minute between requests."
             )
-        return
-    
-    url = update.message.text.strip()
-    
-    # Improved URL validation
-    valid_domains = ["reddit.com", "redd.it", "www.reddit.com", "old.reddit.com"]
-    is_valid = any(domain in url for domain in valid_domains)
-    
-    if not is_valid:
-        await update.message.reply_text(
-            "Please send a valid Reddit post URL.\n"
-            "Examples:\n"
-            "- https://www.reddit.com/r/subreddit/comments/postid/title\n"
-            "- https://redd.it/postid"
-        )
         return
 
     # Record this request
     usage_tracker.record_request(user_id, "analyze_url")
     
-    await update.message.reply_text("Analyzing post... Please wait.")
+    await message.channel.send("Analyzing post... Please wait.")
     
-    bot = RedditBot()
+    reddit_bot = RedditBot()
     
     # Set the model based on user preference if available
-    if hasattr(context.bot_data, 'user_models') and user_id in context.bot_data['user_models']:
-        model_choice = context.bot_data['user_models'][user_id]
-        bot.analyzer.set_model(model_choice)
+    if hasattr(bot, 'user_models') and user_id in bot.user_models:
+        model_choice = bot.user_models[user_id]
+        reddit_bot.analyzer.set_model(model_choice)
     
-    post_summary, comments_summary, sentiment_stats = await bot.analyze_reddit_post(url)
+    post_summary, comments_summary, sentiment_stats = await reddit_bot.analyze_reddit_post(url)
     
     if post_summary.startswith("Error") or post_summary.startswith("Invalid") or post_summary.startswith("Reddit API error"):
-        await update.message.reply_text(f"❌ {post_summary}\n{comments_summary}")
+        await message.channel.send(f"❌ {post_summary}\n{comments_summary}")
         return
 
     # Format response with fun, engaging headings
@@ -606,22 +602,22 @@ async def analyze_url(update, context):
     # Split response into chunks and send multiple messages if needed
     chunks = await chunk_message(response)
     for chunk in chunks:
-        await update.message.reply_text(chunk)
+        await message.channel.send(chunk)
 
-@restricted
-async def whoami(update, context):
+@bot.tree.command(name='whoami', description='Get your Discord user ID')
+async def whoami(interaction: discord.Interaction):
     """Command to check user ID"""
-    await update.message.reply_text(f"Your Telegram User ID is: {update.effective_user.id}")
+    await interaction.response.send_message(f"Your Discord User ID is: {interaction.user.id}")
 
-@restricted
-async def usage(update, context):
+@bot.tree.command(name='usage', description='Check your daily usage statistics')
+async def usage(interaction: discord.Interaction):
     """Command to check usage statistics"""
-    user_id = update.effective_user.id
+    user_id = interaction.user.id
     stats = usage_tracker.get_usage_stats(user_id)
-    await update.message.reply_text(f"📊 Usage Statistics\n\n{stats}")
+    await interaction.response.send_message(f"📊 Usage Statistics\n\n{stats}")
 
-@restricted
-async def cache_stats(update, context):
+@bot.tree.command(name='cache', description='View cache statistics')
+async def cache_stats(interaction: discord.Interaction):
     """Command to check cache statistics"""
     stats = result_cache.get_stats()
     stats_message = (
@@ -629,17 +625,30 @@ async def cache_stats(update, context):
         f"Size: {stats['size']}/{stats['max_size']} entries\n"
         f"TTL: {stats['ttl_hours']} hours"
     )
-    await update.message.reply_text(stats_message)
+    await interaction.response.send_message(stats_message)
 
-@restricted
-async def clear_cache(update, context):
+@bot.tree.command(name='clearcache', description='Clear the analysis cache')
+async def clear_cache(interaction: discord.Interaction):
     """Command to clear the cache"""
     result_cache.clear()
-    await update.message.reply_text("✅ Cache cleared successfully")
+    await interaction.response.send_message("✅ Cache cleared successfully")
 
-def main():
+@bot.event
+async def on_ready():
+    """Called when the bot is ready"""
+    logger.info(f"Bot logged in as {bot.user} (ID: {bot.user.id})")
+    try:
+        # Sync slash commands
+        synced = await bot.tree.sync()
+        logger.info(f"Synced {len(synced)} slash commands")
+        print(f"Bot is ready! Synced {len(synced)} slash commands.")
+    except Exception as e:
+        logger.error(f"Failed to sync commands: {e}")
+        print(f"Failed to sync commands: {e}")
+
+async def main():
     """Start the bot."""
-    required_vars = ['TELEGRAM_TOKEN', 'REDDIT_CLIENT_ID', 'REDDIT_CLIENT_SECRET', 'ANTHROPIC_API_KEY', 'ALLOWED_USER_ID']
+    required_vars = ['DISCORD_TOKEN', 'REDDIT_CLIENT_ID', 'REDDIT_CLIENT_SECRET', 'ANTHROPIC_API_KEY']
     missing_vars = [var for var in required_vars if not os.getenv(var)]
     
     if missing_vars:
@@ -648,24 +657,12 @@ def main():
         print("Please set them in your .env file")
         return
 
-    logger.info("Starting bot...")
+    logger.info("Starting Discord bot...")
     
-    # Create the Application
-    application = Application.builder().token(TELEGRAM_TOKEN).build()
-
-    # Add handlers
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("help", help_command))
-    application.add_handler(CommandHandler("whoami", whoami))
-    application.add_handler(CommandHandler("usage", usage))
-    application.add_handler(CommandHandler("model", set_model))
-    application.add_handler(CommandHandler("cache", cache_stats))
-    application.add_handler(CommandHandler("clearcache", clear_cache))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, analyze_url))
-
     # Start the Bot
-    logger.info("Bot started, polling for updates...")
-    application.run_polling()
+    logger.info("Bot starting, connecting to Discord...")
+    await bot.start(DISCORD_TOKEN)
 
 if __name__ == '__main__':
-    main()
+    import asyncio
+    asyncio.run(main())
