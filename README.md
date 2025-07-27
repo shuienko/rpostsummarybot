@@ -90,16 +90,34 @@ You can run the bot locally using Python or deploy it as a Docker container.
 4.  **Configure environment variables:**
     Create a file named `.env` in the root of the project and add the following variables:
     ```env
+    # Required API Keys
     DISCORD_TOKEN="your_discord_bot_token"
     REDDIT_CLIENT_ID="your_reddit_client_id"
     REDDIT_CLIENT_SECRET="your_reddit_client_secret"
     ANTHROPIC_API_KEY="your_anthropic_api_key"
+    
+    # Optional Configuration (with defaults)
+    MAX_REQUESTS_PER_DAY=30
+    RATE_LIMIT_SECONDS=30
+    DEFAULT_AI_MODEL=haiku3
+    CACHE_MAX_SIZE=100
+    CACHE_TTL_HOURS=24
+    MAX_TOKENS_PER_REQUEST=1024
+    MAX_COMMENTS_TO_ANALYZE=10
+    MAX_EMOTIONS_TO_SHOW=3
+    DISCORD_MESSAGE_MAX_LENGTH=2000
     ```
 
 5.  **Run the bot:**
     ```bash
     python bot.py
     ```
+
+**Note:** You can copy `env.example` to `.env` and modify the values as needed:
+```bash
+cp env.example .env
+# Edit .env with your actual API keys and preferred settings
+```
 
 ### Docker Deployment
 
@@ -115,7 +133,8 @@ The included `Dockerfile` allows you to run the bot in a container.
     Create a directory named `config` and place your `.env` file inside it.
     ```bash
     mkdir config
-    # Create and edit config/.env with your variables
+    # Copy the example file and edit with your settings
+    cp env.example config/.env
     nano config/.env
     ```
 
@@ -132,12 +151,49 @@ The included `Dockerfile` allows you to run the bot in a container.
 
 ## Environment Variables
 
-The bot requires the following environment variables to function:
+The bot uses the following environment variables for configuration:
 
+### Required Variables
 -   `DISCORD_TOKEN`: The token for your Discord bot.
 -   `REDDIT_CLIENT_ID`: The client ID from your Reddit script application.
 -   `REDDIT_CLIENT_SECRET`: The client secret from your Reddit script application.
 -   `ANTHROPIC_API_KEY`: Your API key for the Anthropic (Claude) API.
+
+### Optional Configuration Variables
+All optional variables have sensible defaults and can be omitted:
+
+#### Rate Limiting & Usage
+-   `MAX_REQUESTS_PER_DAY`: Maximum requests per user per day (default: 30)
+-   `RATE_LIMIT_SECONDS`: Seconds between requests for rate limiting (default: 30)
+-   `DEFAULT_AI_MODEL`: Default AI model to use (default: haiku3)
+
+#### Cache Settings
+-   `CACHE_MAX_SIZE`: Maximum number of cached results (default: 100)
+-   `CACHE_TTL_HOURS`: Hours before cached results expire (default: 24)
+
+#### AI Analysis Settings
+-   `MAX_TOKENS_PER_REQUEST`: Maximum tokens per AI request (default: 1024)
+-   `MAX_COMMENTS_TO_ANALYZE`: Number of top comments to analyze (default: 10)
+-   `MAX_EMOTIONS_TO_SHOW`: Number of top emotions to display (default: 3)
+-   `SENTIMENT_INTENSITY_MIN`: Minimum intensity value (default: 1)
+-   `SENTIMENT_INTENSITY_MAX`: Maximum intensity value (default: 5)
+-   `DEFAULT_INTENSITY_VALUE`: Default intensity when analysis fails (default: 3)
+
+#### Discord Message Settings
+-   `DISCORD_MESSAGE_MAX_LENGTH`: Maximum length for Discord messages (default: 2000)
+-   `DISCORD_TITLE_MAX_LENGTH`: Maximum length for title truncation (default: 50)
+
+#### Summary Settings
+-   `POST_SUMMARY_MAX_SENTENCES`: Maximum sentences in post summary (default: 4)
+-   `COMMENT_SUMMARY_MAX_SENTENCES`: Maximum sentences in comment summary (default: 4)
+
+#### Logging Settings
+-   `LOG_MAX_BYTES`: Maximum log file size in bytes (default: 5242880)
+-   `LOG_BACKUP_COUNT`: Number of log backup files (default: 5)
+-   `LOG_TRUNCATE_LENGTH`: Maximum length for log message truncation (default: 50)
+
+#### Reddit Settings
+-   `REDDIT_USER_AGENT`: User agent string for Reddit API (default: python:rpostsummarybot:v1.0)
 
 ## License
 
