@@ -12,57 +12,10 @@ from collections import defaultdict
 import hashlib
 import logging
 from logging.handlers import RotatingFileHandler
-import signal
 import asyncio
 
 # Load environment variables
 load_dotenv()
-
-# Reddit API client will be initialized in async context
-reddit = None
-
-# API Keys
-ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY')
-DISCORD_TOKEN = os.getenv('DISCORD_TOKEN')
-
-# Configuration from environment variables with defaults
-MAX_REQUESTS_PER_DAY = int(os.getenv('MAX_REQUESTS_PER_DAY', '30'))
-RATE_LIMIT_SECONDS = int(os.getenv('RATE_LIMIT_SECONDS', '30'))
-DEFAULT_AI_MODEL = os.getenv('DEFAULT_AI_MODEL', 'haiku3')
-
-# Cache configuration
-CACHE_MAX_SIZE = int(os.getenv('CACHE_MAX_SIZE', '100'))
-CACHE_TTL_HOURS = int(os.getenv('CACHE_TTL_HOURS', '24'))
-
-# Logging configuration
-LOG_MAX_BYTES = int(os.getenv('LOG_MAX_BYTES', '5242880'))  # 5MB
-LOG_BACKUP_COUNT = int(os.getenv('LOG_BACKUP_COUNT', '5'))
-
-# Configure logging
-log_dir = "logs"
-if not os.path.exists(log_dir):
-    os.makedirs(log_dir)
-
-# Set up rotating file handler
-log_file = os.path.join(log_dir, "bot.log")
-file_handler = RotatingFileHandler(log_file, maxBytes=LOG_MAX_BYTES, backupCount=LOG_BACKUP_COUNT)
-file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
-
-# Set up console handler
-console_handler = logging.StreamHandler()
-console_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
-
-# Configure logger
-logger = logging.getLogger("RedditBot")
-logger.setLevel(logging.INFO)
-logger.addHandler(file_handler)
-logger.addHandler(console_handler)
-
-# Load environment variables
-load_dotenv()
-
-# Reddit API client will be initialized in async context
-reddit = None
 
 # API Keys
 ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY')
@@ -102,6 +55,26 @@ REDDIT_USER_AGENT = os.getenv('REDDIT_USER_AGENT', 'python:rpostsummarybot:v1.0'
 
 # Logging truncation settings
 LOG_TRUNCATE_LENGTH = int(os.getenv('LOG_TRUNCATE_LENGTH', '50'))
+
+# Configure logging
+log_dir = "logs"
+if not os.path.exists(log_dir):
+    os.makedirs(log_dir)
+
+# Set up rotating file handler
+log_file = os.path.join(log_dir, "bot.log")
+file_handler = RotatingFileHandler(log_file, maxBytes=LOG_MAX_BYTES, backupCount=LOG_BACKUP_COUNT)
+file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+
+# Set up console handler
+console_handler = logging.StreamHandler()
+console_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+
+# Configure logger
+logger = logging.getLogger("RedditBot")
+logger.setLevel(logging.INFO)
+logger.addHandler(file_handler)
+logger.addHandler(console_handler)
 
 # Usage tracking
 class UsageTracker:
@@ -219,7 +192,7 @@ result_cache = ResultCache()
 # Discord bot setup
 intents = discord.Intents.default()
 intents.message_content = True
-bot = commands.Bot(command_prefix='!', intents=intents)  # Keep prefix for non-slash commands
+bot = commands.Bot(command_prefix=None, intents=intents)
 
 class RedditAnalyzer:
     def __init__(self):
@@ -506,25 +479,11 @@ async def chunk_message(text: str, max_length: int = None) -> List[str]:
 
     return chunks
 
-@bot.tree.command(name='start', description='Get started with the Reddit Analyzer Bot')
-async def start(interaction: discord.Interaction):
-    """Send a message when the /start command is issued."""
-    welcome_message = (
-        "🎉 Welcome to the Reddit Post Analyzer Bot! 🎉\n\n"
-        "Send me any Reddit post URL, and I'll work my magic to give you:\n\n"
-        "📌 **TLDR: POST IN A NUTSHELL** - A quick summary of what the post is about\n"
-        "💬 **WHAT THE CROWD IS SAYING** - The key points from the comments\n"
-        "🎭 **MOOD METER: VIBES CHECK** - How people are feeling about it\n\n"
-        "Use `/help` to see all available commands and get started!"
-    )
-    await interaction.response.send_message(welcome_message)
-
 @bot.tree.command(name='help', description='Show all available commands')
 async def help_command(interaction: discord.Interaction):
     """Send a message with all available commands."""
     help_message = (
         "✨ **REDDIT ANALYZER BOT COMMANDS** ✨\n\n"
-        "🚀 `/start` - Fire up the bot and get the welcome message\n"
         "❓ `/help` - Show this magical list of commands\n"
         "📊 `/usage` - Check how much you've been using the bot\n"
         "🔍 `/whoami` - Discover your Discord user ID\n"
@@ -570,12 +529,10 @@ async def set_model(interaction: discord.Interaction, model: discord.app_command
 @bot.event
 async def on_message(message):
     """Handle incoming messages"""
-    if message.author == bot.user:
+    # Ignore messages from all bots
+    if message.author == bot.user or message.author.bot:
         return
-    
-    # Process commands first
-    await bot.process_commands(message)
-    
+        
     # Check if message contains a Reddit URL
     url = message.content.strip()
     valid_domains = ["reddit.com", "redd.it", "www.reddit.com", "old.reddit.com"]
