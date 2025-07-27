@@ -1,124 +1,200 @@
-# 🤖 Reddit Post Summary Bot: Your AI Reddit Companion! 🚀
+# Reddit Post Analyzer Bot
 
-Ever wished you could get the TL;DR of a Reddit thread without scrolling through endless comments? Say hello to your new best friend! This Telegram bot uses Claude AI to analyze Reddit posts and serve up the juicy details in seconds.
+A Discord bot that provides AI-powered summaries and analysis of Reddit posts. Paste any Reddit post URL and get a quick, digestible summary of the post content and comments, complete with sentiment analysis and mood tracking.
 
-## ✨ What Can This Magical Bot Do?
+## Features
 
-When you send a Reddit URL, the bot works its magic to deliver:
+- **Post Summarization**: Get a concise TL;DR of any Reddit post.
+- **Comment Analysis**: Summarizes the top comments to capture the crowd's opinion.
+- **Sentiment Analysis**: Breaks down comment sentiment into positive, negative, and neutral percentages.
+- **Emotion Detection**: Identifies the top emotions expressed in the comments (e.g., happy, angry, curious).
+- **Intensity Meter**: A visual gauge of the comment section's overall intensity.
+- **AI Model Selection**: Switch between different Anthropic Claude models (`Claude 3 Haiku`, `Claude 3.5 Haiku`, `Claude Sonnet 4`) to balance speed and quality.
+- **Caching**: Results are cached to provide instant responses for previously analyzed posts.
+- **Usage Tracking**: Per-user rate limiting and daily quotas to manage API usage.
 
-- 📌 **TLDR: POST IN A NUTSHELL** - A concise summary of what the post is about
-- 💬 **WHAT THE CROWD IS SAYING** - The key points from the comments section
-- 🎭 **MOOD METER: VIBES CHECK** - Sentiment analysis with percentages of positive/negative reactions
-- 😄 **EMOTION DETECTOR** - Identifies the top emotions in the comments
-- 🔥 **INTENSITY METER** - Measures how strongly people feel about the topic
+## How to Use
 
-## 🧠 AI Brainpower Options
+Simply paste a Reddit post URL into any channel where the bot is present. The bot will automatically fetch the data, analyze it, and post a summary.
 
-Choose your AI processing power based on your needs:
-- ⚡ **Haiku3 Mode** - Quick analysis using Claude 3 Haiku (default)
-- 🚀 **Haiku35 Mode** - Latest Haiku model with improved performance
-- 🔋 **Sonnet4 Mode** - Premium analysis with Claude Sonnet 4.0
+## Architecture
 
-## 🛠️ Cool Technical Features
+The diagram below illustrates the bot's request lifecycle from the moment a user provides a Reddit URL until the analysis is returned.
 
-- 🔄 **Smart Caching** - Results are cached for 24 hours to save API calls
-- 📊 **Usage Tracking** - Limits of 30 requests per day with rate limiting
-- 🔒 **Private Access** - Bot is restricted to a single authorized user
-- 📱 **Message Chunking** - Long analyses are automatically split into readable chunks
-- 📝 **Detailed Logging** - Comprehensive logging system with rotation
+```mermaid
+sequenceDiagram
+    participant User
+    participant DiscordBot as Discord Bot
+    participant Cache
+    participant RedditAPI as Reddit API
+    participant AnthropicAPI as Anthropic API
 
-## 🤓 Prerequisites
+    User->>+DiscordBot: Pastes Reddit URL
+    DiscordBot->>+Cache: Check for cached result
+    alt Cache Hit
+        Cache-->>-DiscordBot: Return cached summary
+    else Cache Miss
+        DiscordBot->>+RedditAPI: Fetch post & comments
+        RedditAPI-->>-DiscordBot: Return post data
+        DiscordBot->>+AnthropicAPI: Request summary & analysis
+        AnthropicAPI-->>-Discord-Bot: Return analysis
+        DiscordBot->>+Cache: Store new result
+        Cache-->>-DiscordBot: Confirm storage
+    end
+    DiscordBot-->>-User: Send analysis
+```
 
-- Python 3.11+ (because we're fancy like that)
-- Reddit API credentials (for stalking Reddit posts... legally!)
-- Telegram Bot Token (your bot's ID card)
-- Anthropic API Key (to access the AI brains)
-- Docker (optional, for those who like containers)
+### Commands
 
-## 🚀 Quick Start
+The bot uses Discord slash commands for configuration and other actions:
 
-### 1️⃣ Clone this beauty:
+-   `/start`: Displays a welcome message.
+-   `/help`: Shows a list of all available commands.
+-   `/model`: Allows you to switch the AI model used for analysis.
+    -   `model`: `haiku3` (fastest), `haiku35` (balanced), `sonnet4` (highest quality).
+-   `/usage`: Checks your current daily API usage.
+-   `/whoami`: Displays your Discord user ID.
+-   `/cache`: Shows statistics about the analysis cache.
+-   `/clearcache`: Clears the cache manually.
+
+## Setup and Installation
+
+You can run the bot locally using Python or deploy it as a Docker container.
+
+### Prerequisites
+
+-   Python 3.11+
+-   Git
+-   An account with [Discord](https://discord.com/developers/applications), [Reddit](https://www.reddit.com/prefs/apps), and [Anthropic](https://console.anthropic.com/) to get API credentials.
+
+### Local Setup
+
+1.  **Clone the repository:**
+    ```bash
+    git clone https://github.com/shuienko/rpostsummarybot.git
+    cd rpostsummarybot
+    ```
+
+2.  **Set up a virtual environment:**
+    ```bash
+    python3 -m venv venv
+    source venv/bin/activate
+    # On Windows, use: venv\Scripts\activate
+    ```
+
+3.  **Install dependencies:**
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+4.  **Configure environment variables:**
+    Create a file named `.env` in the root of the project and add the following variables:
+    ```env
+    # Required API Keys
+    DISCORD_TOKEN="your_discord_bot_token"
+    REDDIT_CLIENT_ID="your_reddit_client_id"
+    REDDIT_CLIENT_SECRET="your_reddit_client_secret"
+    ANTHROPIC_API_KEY="your_anthropic_api_key"
+    
+    # Optional Configuration (with defaults)
+    MAX_REQUESTS_PER_DAY=30
+    RATE_LIMIT_SECONDS=30
+    DEFAULT_AI_MODEL=haiku3
+    CACHE_MAX_SIZE=100
+    CACHE_TTL_HOURS=24
+    MAX_TOKENS_PER_REQUEST=1024
+    MAX_COMMENTS_TO_ANALYZE=10
+    MAX_EMOTIONS_TO_SHOW=3
+    DISCORD_MESSAGE_MAX_LENGTH=2000
+    ```
+
+5.  **Run the bot:**
+    ```bash
+    python bot.py
+    ```
+
+**Note:** You can copy `env.example` to `.env` and modify the values as needed:
 ```bash
-git clone git@github.com:shuienko/rpostsummarybot.git
-cd rpostsummarybot
+cp env.example .env
+# Edit .env with your actual API keys and preferred settings
 ```
 
-### 2️⃣ Install the goodies:
-```bash
-pip install -r requirements.txt
-```
+### Docker Deployment
 
-### 3️⃣ Create a `.env` file with your secret stuff:
-```env
-TELEGRAM_TOKEN=your_telegram_bot_token
-REDDIT_CLIENT_ID=your_reddit_client_id
-REDDIT_CLIENT_SECRET=your_reddit_client_secret
-ANTHROPIC_API_KEY=your_anthropic_api_key
-ALLOWED_USER_ID=your_telegram_user_id_here
-```
+The included `Dockerfile` allows you to run the bot in a container.
 
-### 4️⃣ Launch the bot:
-```bash
-python bot.py
-```
+1.  **Clone the repository:**
+    ```bash
+    git clone https://github.com/shuienko/rpostsummarybot.git
+    cd rpostsummarybot
+    ```
 
-## 🐳 Docker Fans
+2.  **Configure environment variables:**
+    Create a directory named `config` and place your `.env` file inside it.
+    ```bash
+    mkdir config
+    # Copy the example file and edit with your settings
+    cp env.example config/.env
+    nano config/.env
+    ```
 
-Build and run with Docker if you're too cool for local installations:
+3.  **Build the Docker image:**
+    ```bash
+    docker build -t rpostsummarybot .
+    ```
 
-```bash
-docker build -t reddit-analysis-bot .
-docker run -v $(pwd)/config:/app/config reddit-analysis-bot
-```
+4.  **Run the Docker container:**
+    This command mounts the `config` directory into the container.
+    ```bash
+    docker run -d --name rpostsummarybot -v "$(pwd)/config":/app/config rpostsummarybot
+    ```
 
-## 🎮 Bot Commands
+## Environment Variables
 
-- `/start` - Wake up the bot with a friendly greeting
-- `/help` - Show all the cool commands available
-- `/model [haiku3/haiku35/sonnet4]` - Switch between AI brains
-- `/usage` - Check how many requests you have left today
-- `/whoami` - Discover your Telegram user ID
-- `/cache` - See what's in the memory bank
-- `/clearcache` - Spring cleaning for the cache
+The bot uses the following environment variables for configuration:
 
-## 🧙‍♂️ How It Works Behind The Curtain
+### Required Variables
+-   `DISCORD_TOKEN`: The token for your Discord bot.
+-   `REDDIT_CLIENT_ID`: The client ID from your Reddit script application.
+-   `REDDIT_CLIENT_SECRET`: The client secret from your Reddit script application.
+-   `ANTHROPIC_API_KEY`: Your API key for the Anthropic (Claude) API.
 
-1. You send a Reddit URL
-2. Bot checks if it's in the cache (why work twice?)
-3. If not cached, it fetches the post and top 10 comments
-4. Claude AI analyzes the post content and creates a summary
-5. Each comment gets a sentiment analysis (positive/negative/neutral)
-6. Comments are summarized together to extract key points
-7. All the data is packaged into a fun, emoji-filled response
-8. Long responses are automatically split into digestible chunks
+### Optional Configuration Variables
+All optional variables have sensible defaults and can be omitted:
 
-## 📊 Rate Limits & Usage
+#### Rate Limiting & Usage
+-   `MAX_REQUESTS_PER_DAY`: Maximum requests per user per day (default: 30)
+-   `RATE_LIMIT_SECONDS`: Seconds between requests for rate limiting (default: 30)
+-   `DEFAULT_AI_MODEL`: Default AI model to use (default: haiku3)
 
-- Maximum 30 requests per day (we don't want to break the bank)
-- Minimum 30 seconds between requests (patience is a virtue)
-- Results are cached for 24 hours (for efficiency!)
-- Cache holds up to 100 results (we're not made of memory)
+#### Cache Settings
+-   `CACHE_MAX_SIZE`: Maximum number of cached results (default: 100)
+-   `CACHE_TTL_HOURS`: Hours before cached results expire (default: 24)
 
-## 🛡️ Error Handling
+#### AI Analysis Settings
+-   `MAX_TOKENS_PER_REQUEST`: Maximum tokens per AI request (default: 1024)
+-   `MAX_COMMENTS_TO_ANALYZE`: Number of top comments to analyze (default: 10)
+-   `MAX_EMOTIONS_TO_SHOW`: Number of top emotions to display (default: 3)
+-   `SENTIMENT_INTENSITY_MIN`: Minimum intensity value (default: 1)
+-   `SENTIMENT_INTENSITY_MAX`: Maximum intensity value (default: 5)
+-   `DEFAULT_INTENSITY_VALUE`: Default intensity when analysis fails (default: 3)
 
-The bot gracefully handles:
-- Invalid Reddit URLs (it's not a magician)
-- API failures (when Reddit or Claude are having a bad day)
-- Rate limiting (when you're too excited and sending too many requests)
-- Message size limitations (by splitting long analyses)
+#### Discord Message Settings
+-   `DISCORD_MESSAGE_MAX_LENGTH`: Maximum length for Discord messages (default: 2000)
+-   `DISCORD_TITLE_MAX_LENGTH`: Maximum length for title truncation (default: 50)
 
-## 🙏 Acknowledgments
+#### Summary Settings
+-   `POST_SUMMARY_MAX_SENTENCES`: Maximum sentences in post summary (default: 4)
+-   `COMMENT_SUMMARY_MAX_SENTENCES`: Maximum sentences in comment summary (default: 4)
 
-- Built with [python-telegram-bot](https://github.com/python-telegram-bot/python-telegram-bot)
-- Reddit data via [asyncpraw](https://asyncpraw.readthedocs.io/)
-- AI magic powered by [Anthropic's Claude](https://www.anthropic.com/claude)
+#### Logging Settings
+-   `LOG_MAX_BYTES`: Maximum log file size in bytes (default: 5242880)
+-   `LOG_BACKUP_COUNT`: Number of log backup files (default: 5)
+-   `LOG_TRUNCATE_LENGTH`: Maximum length for log message truncation (default: 50)
 
-## 🎭 Why This Bot Is Awesome
+#### Reddit Settings
+-   `REDDIT_USER_AGENT`: User agent string for Reddit API (default: python:rpostsummarybot:v1.0)
 
-- It saves you time reading long Reddit threads
-- It gives you the emotional temperature of discussions
-- It's private and only works for you
-- It has a personality (unlike some other bots)
-- It uses emojis liberally because life's too short for plain text
+## License
 
-Now go forth and analyze some Reddit posts! 🚀
+This project is licensed under the terms of the license specified in the `LICENSE` file. 
